@@ -86,17 +86,22 @@ module.exports = function() {
   };
 
   function getContext(canvas) {
-    canvas.width = canvas.height = 1;
-    var ratio = Math.sqrt(canvas.getContext("2d").getImageData(0, 0, 1, 1).data.length >> 2);
-    canvas.width = (cw << 5) / ratio;
-    canvas.height = ch / ratio;
+    try {
+        canvas.width = canvas.height = 1;
+        var ratio = Math.sqrt(canvas.getContext("2d").getImageData(0, 0, 1, 1).data.length >> 2);
+        canvas.width = (cw << 5) / ratio;
+        canvas.height = ch / ratio;
 
-    var context = canvas.getContext("2d");
-    context.fillStyle = context.strokeStyle = "red";
-    context.textAlign = "center";
+        var context = canvas.getContext("2d");
+        context.fillStyle = context.strokeStyle = "red";
+        context.textAlign = "center";
 
-    return {context: context, ratio: ratio};
+        return {context: context, ratio: ratio};
+    } catch (e) {
+        return ""
+    }
   }
+
 
   function place(board, tag, bounds) {
     var perimeter = [{x: 0, y: 0}, {x: size[0], y: size[1]}],
@@ -231,91 +236,96 @@ function cloudPadding() {
 // Fetches a monochrome sprite bitmap for the specified text.
 // Load in batches for speed.
 function cloudSprite(contextAndRatio, d, data, di) {
-  if (d.sprite) return;
-  var c = contextAndRatio.context,
-      ratio = contextAndRatio.ratio;
+  try {
+      if (d.sprite) return;
+      var c = contextAndRatio.context,
+          ratio = contextAndRatio.ratio;
 
-  c.clearRect(0, 0, (cw << 5) / ratio, ch / ratio);
-  var x = 0,
-      y = 0,
-      maxh = 0,
-      n = data.length;
-  --di;
-  while (++di < n) {
-    d = data[di];
-    c.save();
-    c.font = d.style + " " + d.weight + " " + ~~((d.size + 1) / ratio) + "px " + d.font;
-    var w = c.measureText(d.text + "m").width * ratio,
-        h = d.size << 1;
-    if (d.rotate) {
-      var sr = Math.sin(d.rotate * cloudRadians),
-          cr = Math.cos(d.rotate * cloudRadians),
-          wcr = w * cr,
-          wsr = w * sr,
-          hcr = h * cr,
-          hsr = h * sr;
-      w = (Math.max(Math.abs(wcr + hsr), Math.abs(wcr - hsr)) + 0x1f) >> 5 << 5;
-      h = ~~Math.max(Math.abs(wsr + hcr), Math.abs(wsr - hcr));
-    } else {
-      w = (w + 0x1f) >> 5 << 5;
-    }
-    if (h > maxh) maxh = h;
-    if (x + w >= (cw << 5)) {
-      x = 0;
-      y += maxh;
-      maxh = 0;
-    }
-    if (y + h >= ch) break;
-    c.translate((x + (w >> 1)) / ratio, (y + (h >> 1)) / ratio);
-    if (d.rotate) c.rotate(d.rotate * cloudRadians);
-    c.fillText(d.text, 0, 0);
-    if (d.padding) c.lineWidth = 2 * d.padding, c.strokeText(d.text, 0, 0);
-    c.restore();
-    d.width = w;
-    d.height = h;
-    d.xoff = x;
-    d.yoff = y;
-    d.x1 = w >> 1;
-    d.y1 = h >> 1;
-    d.x0 = -d.x1;
-    d.y0 = -d.y1;
-    d.hasText = true;
-    x += w;
-  }
-  var pixels = c.getImageData(0, 0, (cw << 5) / ratio, ch / ratio).data,
-      sprite = [];
-  while (--di >= 0) {
-    d = data[di];
-    if (!d.hasText) continue;
-    var w = d.width,
-        w32 = w >> 5,
-        h = d.y1 - d.y0;
-    // Zero the buffer
-    for (var i = 0; i < h * w32; i++) sprite[i] = 0;
-    x = d.xoff;
-    if (x == null) return;
-    y = d.yoff;
-    var seen = 0,
-        seenRow = -1;
-    for (var j = 0; j < h; j++) {
-      for (var i = 0; i < w; i++) {
-        var k = w32 * j + (i >> 5),
-            m = pixels[((y + j) * (cw << 5) + (x + i)) << 2] ? 1 << (31 - (i % 32)) : 0;
-        sprite[k] |= m;
-        seen |= m;
+      c.clearRect(0, 0, (cw << 5) / ratio, ch / ratio);
+      var x = 0,
+          y = 0,
+          maxh = 0,
+          n = data.length;
+      --di;
+      while (++di < n) {
+          d = data[di];
+          c.save();
+          c.font = d.style + " " + d.weight + " " + ~~((d.size + 1) / ratio) + "px " + d.font;
+          var w = c.measureText(d.text + "m").width * ratio,
+              h = d.size << 1;
+          if (d.rotate) {
+              var sr = Math.sin(d.rotate * cloudRadians),
+                  cr = Math.cos(d.rotate * cloudRadians),
+                  wcr = w * cr,
+                  wsr = w * sr,
+                  hcr = h * cr,
+                  hsr = h * sr;
+              w = (Math.max(Math.abs(wcr + hsr), Math.abs(wcr - hsr)) + 0x1f) >> 5 << 5;
+              h = ~~Math.max(Math.abs(wsr + hcr), Math.abs(wsr - hcr));
+          } else {
+              w = (w + 0x1f) >> 5 << 5;
+          }
+          if (h > maxh) maxh = h;
+          if (x + w >= (cw << 5)) {
+              x = 0;
+              y += maxh;
+              maxh = 0;
+          }
+          if (y + h >= ch) break;
+          c.translate((x + (w >> 1)) / ratio, (y + (h >> 1)) / ratio);
+          if (d.rotate) c.rotate(d.rotate * cloudRadians);
+          c.fillText(d.text, 0, 0);
+          if (d.padding) c.lineWidth = 2 * d.padding, c.strokeText(d.text, 0, 0);
+          c.restore();
+          d.width = w;
+          d.height = h;
+          d.xoff = x;
+          d.yoff = y;
+          d.x1 = w >> 1;
+          d.y1 = h >> 1;
+          d.x0 = -d.x1;
+          d.y0 = -d.y1;
+          d.hasText = true;
+          x += w;
       }
-      if (seen) seenRow = j;
-      else {
-        d.y0++;
-        h--;
-        j--;
-        y++;
+      var pixels = c.getImageData(0, 0, (cw << 5) / ratio, ch / ratio).data,
+          sprite = [];
+      while (--di >= 0) {
+          d = data[di];
+          if (!d.hasText) continue;
+          var w = d.width,
+              w32 = w >> 5,
+              h = d.y1 - d.y0;
+          // Zero the buffer
+          for (var i = 0; i < h * w32; i++) sprite[i] = 0;
+          x = d.xoff;
+          if (x == null) return;
+          y = d.yoff;
+          var seen = 0,
+              seenRow = -1;
+          for (var j = 0; j < h; j++) {
+              for (var i = 0; i < w; i++) {
+                  var k = w32 * j + (i >> 5),
+                      m = pixels[((y + j) * (cw << 5) + (x + i)) << 2] ? 1 << (31 - (i % 32)) : 0;
+                  sprite[k] |= m;
+                  seen |= m;
+              }
+              if (seen) seenRow = j;
+              else {
+                  d.y0++;
+                  h--;
+                  j--;
+                  y++;
+              }
+          }
+          d.y1 = d.y0 + seenRow;
+          d.sprite = sprite.slice(0, (d.y1 - d.y0) * w32);
       }
-    }
-    d.y1 = d.y0 + seenRow;
-    d.sprite = sprite.slice(0, (d.y1 - d.y0) * w32);
+  }catch (e) {
+      return ""
   }
 }
+
 
 // Use mask-based collision detection.
 function cloudCollide(tag, board, sw) {
@@ -360,21 +370,33 @@ function archimedeanSpiral(size) {
 }
 
 function rectangularSpiral(size) {
-  var dy = 4,
-      dx = dy * size[0] / size[1],
-      x = 0,
-      y = 0;
-  return function(t) {
-    var sign = t < 0 ? -1 : 1;
-    // See triangular numbers: T_n = n * (n + 1) / 2.
-    switch ((Math.sqrt(1 + 4 * sign * t) - sign) & 3) {
-      case 0:  x += dx; break;
-      case 1:  y += dy; break;
-      case 2:  x -= dx; break;
-      default: y -= dy; break;
-    }
-    return [x, y];
-  };
+  try {
+      var dy = 4,
+          dx = dy * size[0] / size[1],
+          x = 0,
+          y = 0;
+      return function (t) {
+          var sign = t < 0 ? -1 : 1;
+          // See triangular numbers: T_n = n * (n + 1) / 2.
+          switch ((Math.sqrt(1 + 4 * sign * t) - sign) & 3) {
+              case 0:
+                  x += dx;
+                  break;
+              case 1:
+                  y += dy;
+                  break;
+              case 2:
+                  x -= dx;
+                  break;
+              default:
+                  y -= dy;
+                  break;
+          }
+          return [x, y];
+      };
+  }catch (e) {
+      return ""
+  }
 }
 
 // TODO reuse arrays?
@@ -386,7 +408,7 @@ function zeroArray(n) {
 }
 
 function cloudCanvas() {
-  return document.createElement("canvas");
+  return typeof document !== 'undefined' && document.createElement("canvas");
 }
 
 function functor(d) {
